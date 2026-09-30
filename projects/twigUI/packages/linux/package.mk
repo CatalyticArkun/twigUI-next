@@ -34,7 +34,7 @@ case ${DEVICE} in
     PKG_VERSION="7.1.2"
     PKG_SHA256="37198c93727be247c9fb5309bb86cd5e496c61e5322cd8c4eca9476bb0b5883f"
     PKG_URL="https://www.kernel.org/pub/linux/kernel/v${PKG_VERSION/.*/}.x/${PKG_NAME}-${PKG_VERSION}.tar.xz"
-    PKG_PATCH_DIRS="${LINUX} mainline ${DEVICE} default 7.0"
+    PKG_PATCH_DIRS+=" 7.0"
     ;;
   RK3588)
     PKG_VERSION="b8e62bed74766b6c8c423a767b35495e78b64caf"
