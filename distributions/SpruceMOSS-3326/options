@@ -14,7 +14,7 @@
   # GIT_REPO="distribution"
 
 # Name of the Distro to build (full name, without special characters)
-  DISTRONAME="TwigMoss"
+  DISTRONAME="SpruceMOSS-3326"
 
 # Name of the OS to build (full name, lower case, without special characters)
   OSNAME="twigui"

@@ -2,10 +2,11 @@
   <RK3326S mkimage_options="dtb,extlinux,uboot" fdt="rk3326s-gkd-pixel2.dtb" fdt_type="fdt" dtb_prefix="rockchip">
     <file>rk3326s-gkd-pixel2</file>
   </RK3326S>
-  <!-- TwigMoss. Both blocks mirror ROCKNIX's projects/ROCKNIX/config.xml so the
-       copied device profiles build what they were written for. RK3326 takes
-       only ROCKNIX's "b" image: its mainline u-boot is the one that carries the
-       ADC board detection for the XU Mini M and the K36-derived G350. -->
+  <!-- RK3326 (SpruceMOSS-3326) and RK3566 (a candidate for twigUI itself).
+       Both blocks mirror ROCKNIX's projects/ROCKNIX/config.xml so the copied
+       device profiles build what they were written for. RK3326 takes only
+       ROCKNIX's "b" image: its mainline u-boot is the one that carries the ADC
+       board detection for the XU Mini M and the K36-derived G350. -->
   <RK3326 dtb_prefix="rockchip">
     <b mkimage_options="dtb,bootscr,extlinux,uboot" fdt_type="fdtdir" fdt="/">
       <file>rk3326-powkiddy-rgb10x</file>

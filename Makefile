@@ -63,25 +63,32 @@ RK3326:
 	PROJECT=ROCKNIX DEVICE=RK3326 ARCH=arm ./scripts/build_distro
 	PROJECT=ROCKNIX DEVICE=RK3326 ARCH=aarch64 ./scripts/build_distro
 
-# TwigMoss: the twigUI project's machinery under the TwigMoss distro identity,
-# so /etc/os-release reads OS_NAME="TwigMoss" the way dArkMoss cards read
-# OS_NAME="DARKMOSS". One image per SoC; the board inside it is chosen at
-# runtime by device-switch.
-TwigMoss-RK3326:
+# SpruceMOSS-3326 (twig): the twigUI project's machinery under its own distro
+# identity, so /etc/os-release reads OS_NAME="SpruceMOSS-3326" the way dArkMoss
+# cards read OS_NAME="DARKMOSS". RK3326 is one image for the G350 and the XU
+# Mini M (u-boot picks the board); RK3326S is the GKD Pixel 2, exactly as twigUI
+# builds it. Its RK3566 sibling, SpruceMOSS-3566, is the dArkMoss lineage.
+SpruceMOSS-3326-RK3326:
 	unset DEVICE_ROOT
-	PROJECT=twigUI DISTRO=TwigMoss DEVICE=RK3326 ARCH=aarch64 ./scripts/build_distro
+	PROJECT=twigUI DISTRO=SpruceMOSS-3326 DEVICE=RK3326 ARCH=arm ./scripts/build_distro
+	PROJECT=twigUI DISTRO=SpruceMOSS-3326 DEVICE=RK3326 ARCH=aarch64 ./scripts/build_distro
 
-TwigMoss-RK3326S:
+SpruceMOSS-3326-RK3326S:
 	unset DEVICE_ROOT
-	PROJECT=twigUI DISTRO=TwigMoss DEVICE=RK3326S ARCH=aarch64 ./scripts/build_distro
+	PROJECT=twigUI DISTRO=SpruceMOSS-3326 DEVICE=RK3326S ARCH=arm ./scripts/build_distro
+	PROJECT=twigUI DISTRO=SpruceMOSS-3326 DEVICE=RK3326S ARCH=aarch64 ./scripts/build_distro
 
-TwigMoss-RK3566:
-	unset DEVICE_ROOT
-	PROJECT=twigUI DISTRO=TwigMoss DEVICE=RK3566 ARCH=aarch64 ./scripts/build_distro
-
+# The same device profiles under twigUI's own identity - what twigUI itself
+# would ship if it took them. RK3566 is only here as that candidate.
 RK3326-twig:
 	unset DEVICE_ROOT
+	PROJECT=twigUI DISTRO=twigUI DEVICE=RK3326 ARCH=arm ./scripts/build_distro
 	PROJECT=twigUI DISTRO=twigUI DEVICE=RK3326 ARCH=aarch64 ./scripts/build_distro
+
+RK3566-twig:
+	unset DEVICE_ROOT
+	PROJECT=twigUI DISTRO=twigUI DEVICE=RK3566 ARCH=arm ./scripts/build_distro
+	PROJECT=twigUI DISTRO=twigUI DEVICE=RK3566 ARCH=aarch64 ./scripts/build_distro
 
 RK3326S:
 	unset DEVICE_ROOT

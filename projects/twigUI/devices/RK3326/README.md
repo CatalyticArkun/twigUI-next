@@ -1,10 +1,12 @@
 # twigUI device profile: RK3326 (BatleXP G350, MagicX XU Mini M)
 
 A second twigUI device profile beside `RK3326S`, which stays the GKD Pixel 2's and is
-untouched by this. Build it with:
+untouched by this. It is the profile behind SpruceMOSS-3326 (see `SPRUCEMOSS-3326.md`
+at the top of the tree), and builds under either identity:
 
 ```sh
-make RK3326-twig      # PROJECT=twigUI DISTRO=twigUI DEVICE=RK3326 ARCH=aarch64
+make SpruceMOSS-3326-RK3326   # PROJECT=twigUI DISTRO=SpruceMOSS-3326 DEVICE=RK3326
+make RK3326-twig              # PROJECT=twigUI DISTRO=twigUI DEVICE=RK3326
 ```
 
 **Nothing here has been built or run.** It is assembled from sources that each already
@@ -74,31 +76,45 @@ slow card ever loses the race, a bounded wait belongs here.
 
 ## Board selection
 
-One image ships every dtb. `device-switch` rewrites extlinux's `FDT` line from the
-`rocknix,device_switch` node, so:
+The image is ROCKNIX's RK3326 "b" image (`projects/twigUI/config.xml`): mainline u-boot
+reads the board's ADC divider into `hwid_adc`, and `b_boot.ini` maps it to a dtb:
+
+| ADC | dtb | note |
+|---|---|---|
+| PX30S silicon (DDR GRF check, before any ADC test) | `rk3326s-gkd-pixel2` | ROCKNIX's mainline Pixel 2 path; not a spruce target of this profile |
+| 140-190 | `rk3326-powkiddy-rgb10x` | |
+| 1000-1050 | `rk3326-magicx-xu-mini-m` | the same band as the XU10, which ROCKNIX's "a" image detects instead |
+| 490-540 | `rk3326-batlexp-g350` | **changed here**: ROCKNIX boots its EE-clone dtb in this band |
+
+The 490-540 band belongs to the K36 board family, which the G350 and the EE clones both
+descend from; UnofficialOS's hwrev table names it "BattleXP G350 K36 Clones" and agrees
+with the other two bands (xumini 1000-1050, r33s 140-190), so it samples the same ADC.
+Boards the script does not name get a generated `extlinux.conf.<board>` beside
+`extlinux.conf` (`extlinux.conf.eeclone`, `.xu10`, `.rgb20s`); renaming one over
+`extlinux.conf` pins that board.
+
+`device-switch` then works at runtime, from the `rocknix,device_switch` group:
 
 ```sh
-device-switch --options     # g350 xumini xu10 (plus the R36 family on its own boards)
+device-switch --options     # g350 xumini xu10
 device-switch xumini        # repoint and reboot
 device-switch               # which board this image is currently set to
 ```
 
-UnofficialOS goes further and picks the board *automatically* in u-boot from an ADC
-divider (G350 at 490-540, XU Mini M at 1000-1050, per its `001-set-hwrev.patch`). That is
-the obvious next step if swapping a card between these two boards becomes routine; it is
-deliberately not done here, because it means patching u-boot rather than shipping a dts.
-
 ## Open items
 
 - **Never built.** The kernel case, patch dirs and vendored packages are reasoned from the
-  build system's own lookup rules, not from a successful run.
+  build system's own lookup rules, not from a successful run. What has been checked: the
+  package plan resolves (501 steps) inside `ghcr.io/rocknix/rocknix-build`, with
+  `SUBDEVICES=b` and the seven dtbs above. The host alone cannot check this - without
+  `xmlstarlet` the config.xml lookups come back empty and the plan still "resolves".
 - `glibc`'s `OPT_ENABLE_KERNEL`, `wlroots`/`sway`'s rockchip variant and
   `ffmpeg-rockchip`'s `V4L2_SUPPORT` all case on `RK3326S`/`RK3588` in the twigUI project.
   This profile deliberately takes their defaults; whether any of them should follow the
   `RK3326S` branch needs a build to answer.
 - spruce itself needs platform files for both boards (`G350.cfg`, a Mini M cfg, their
   `device_functions`, PyUI device classes) and a fix for spruce's `*0xd04*` detection,
-  which currently resolves every RK3326 board to `Pixel2`. That work lives in spruceOS,
-  not here.
+  which currently resolves every RK3326 board to `Pixel2`. See `SPRUCEMOSS-3326.md` for
+  how that has to ride on twig's pinned spruce payload.
 - No prebuilt spruce binary has been shown to render on RK3326; twig's own method is to
   build the emulator stack against the target GPU stack, which is what this profile does.
