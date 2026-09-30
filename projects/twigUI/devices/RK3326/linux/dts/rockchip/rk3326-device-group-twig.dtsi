@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Boards this twigUI RK3326 profile targets, for ROCKNIX's device-switch:
+ * one image ships every dtb and `device-switch <name>` repoints extlinux's FDT.
+ * Same shape as rk3326-device-group-r36.dtsi.
+ */
+
+/ {
+	rocknix,device_switch {
+		g350 = "rk3326-batlexp-g350";
+		xumini = "rk3326-magicx-xu-mini-m";
+		xu10 = "rk3326-magicx-xu10";
+	};
+};

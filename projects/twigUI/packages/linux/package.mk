@@ -25,6 +25,17 @@ case ${DEVICE} in
     PKG_GIT_CLONE_BRANCH="master"
     PKG_PATCH_DIRS="${DEVICE} default"
     ;;
+  RK3326)
+    # Mainline, pinned to exactly what ROCKNIX builds its own RK3326 profile
+    # against (projects/ROCKNIX/packages/linux/package.mk), because this
+    # profile's dts and its 18 kernel patches came from there. The Pixel 2
+    # (RK3326S) keeps its vendor 5.10 tree above - the two do not share a
+    # kernel.
+    PKG_VERSION="7.1.2"
+    PKG_SHA256="37198c93727be247c9fb5309bb86cd5e496c61e5322cd8c4eca9476bb0b5883f"
+    PKG_URL="https://www.kernel.org/pub/linux/kernel/v${PKG_VERSION/.*/}.x/${PKG_NAME}-${PKG_VERSION}.tar.xz"
+    PKG_PATCH_DIRS="${LINUX} mainline ${DEVICE} default 7.0"
+    ;;
   RK3588)
     PKG_VERSION="b8e62bed74766b6c8c423a767b35495e78b64caf"
     PKG_URL="https://github.com/armbian/linux-rockchip/archive/${PKG_VERSION}.tar.gz"
