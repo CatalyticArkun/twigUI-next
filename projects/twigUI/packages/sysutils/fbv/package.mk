@@ -6,6 +6,7 @@ PKG_VERSION="7c2000804226ca860ca80f3baa993582e29aa1a2"
 PKG_LICENSE="GPLv2"
 PKG_SITE="https://github.com/amadvance/fbv"
 PKG_URL="${PKG_SITE}/archive/${PKG_VERSION}.tar.gz"
+PKG_DEPENDS_INIT="toolchain autotools:host"
 PKG_LONGDESC="Simple program to view pictures on a Linux framebuffer device"
 PKG_TOOLCHAIN="configure"
 
