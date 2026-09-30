@@ -1,0 +1,297 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: arkun <jstn.lucas@gmail.com>
+Date: Wed, 30 Sep 2026 01:26:38 -0500
+Subject: [PATCH 1/2] SpruceMOSS-3326: resolve RK3326 boards from the device
+ tree
+
+spruce resolved every RK3326 board to Pixel2 (cpuinfo part 0xd04). The
+SpruceMOSS-3326 RK3326 image names its board in device-switch's group
+node, rocknix,device_switch/this (rk3326-device-group-twig.dtsi in the
+twig fork), so read it: g350 -> G350. Anything else - no node, as on
+twigUI's own Pixel 2 image, or a board without a platform yet - stays
+Pixel2. The stderr redirect comes before the input redirect so a missing
+node prints nothing under dash, bash or busybox sh.
+
+The new boards run the Pixel 2's twig userspace and the emulators twig
+builds for its image, so:
+- device_names: G350 answers to BATLEXP_G350 and then GKD_PIXEL2, the
+  Pixel 2's name doubling as the twig RK3326 family token (the
+  ANBERNIC_RGXX pattern) - no Emu config.json needs editing.
+- Every branch that is about twig's userspace rather than the Pixel 2's
+  hardware takes G350 and XUMiniM too: file manager, gallery and reader
+  gptokeyb maps, PortMaster's PYSDL2 path, boot-logo conversion skip,
+  advmame, drastic (dispatches run_drastic_$PLATFORM), OpenBOR, PICO-8,
+  ScummVM (shares the pixel2 config), RetroArch --config, firstboot's
+  advmame unpack, the tz-data timezone exemption, theme loading screen.
+  XUMiniM is listed ahead of its platform; nothing resolves to it yet.
+
+The updater is left alone: it only uses PLATFORM to pick the Mini
+startup or the Flip session, and both RK3326 boards take runtime.sh.
+---
+ App/BootLogo/install_logo.sh                |  2 +-
+ App/FileManagement/launch.sh                |  2 +-
+ App/Gallery/launch.sh                       | 11 ++++++-----
+ App/PixelReader/launch.sh                   |  2 +-
+ App/PortMaster/launch.sh                    |  2 +-
+ spruce/scripts/emu/lib/advmame_functions.sh |  2 +-
+ spruce/scripts/emu/lib/drastic_functions.sh |  4 ++++
+ spruce/scripts/emu/lib/openbor_functions.sh |  2 +-
+ spruce/scripts/emu/lib/pico8_functions.sh   |  4 ++--
+ spruce/scripts/emu/lib/ra_functions.sh      |  2 +-
+ spruce/scripts/emu/lib/scummvm_functions.sh |  2 +-
+ spruce/scripts/firstboot.sh                 |  2 +-
+ spruce/scripts/helperFunctions.sh           | 15 ++++++++++++++-
+ spruce/scripts/network/timeFunctions.sh     |  3 ++-
+ spruce/scripts/tasks/resetScummVM.sh        |  2 +-
+ spruce/scripts/theme_watchdog.sh            |  2 +-
+ 16 files changed, 39 insertions(+), 20 deletions(-)
+
+diff --git a/App/BootLogo/install_logo.sh b/App/BootLogo/install_logo.sh
+index 9ea283f9b..e3897a5ce 100644
+--- a/App/BootLogo/install_logo.sh
++++ b/App/BootLogo/install_logo.sh
+@@ -48,7 +48,7 @@ ORIG_LOGO_PATH="$LOGO_PATH"
+ # there (a stock CubeXX has a 720x720 panel but a 640x480 bootlogo.bmp), and the
+ # ffprobe below is a 32-bit binary that cannot run under BaseOS.
+ case "$PLATFORM" in
+-    Anbernic*|Pixel2) SKIP_GENERIC_CONVERT=1 ;;
++    Anbernic*|Pixel2|G350|XUMiniM) SKIP_GENERIC_CONVERT=1 ;;
+     *)                SKIP_GENERIC_CONVERT=0 ;;
+ esac
+ 
+diff --git a/App/FileManagement/launch.sh b/App/FileManagement/launch.sh
+index e05457c78..e7feb3796 100755
+--- a/App/FileManagement/launch.sh
++++ b/App/FileManagement/launch.sh
+@@ -34,7 +34,7 @@ case "$PLATFORM" in
+         sync
+         killall -q -USR2 joystickinput
+         ;;
+-    "Brick"|"BrickPro"|"Flip"|"Miniloong"|"SmartPro"|"SmartProS"|"Pixel2"|"RGB30")
++    "Brick"|"BrickPro"|"Flip"|"Miniloong"|"SmartPro"|"SmartProS"|"Pixel2"|"G350"|"XUMiniM"|"RGB30")
+         ./vtree.aarch64 >"$HOME/log.txt" 2>&1
+         sync
+         ;;
+diff --git a/App/Gallery/launch.sh b/App/Gallery/launch.sh
+index 58275cf90..e1608cd43 100755
+--- a/App/Gallery/launch.sh
++++ b/App/Gallery/launch.sh
+@@ -45,11 +45,12 @@ else
+             ;;
+     esac
+ 
+-    if [ "$PLATFORM" = "Pixel2" ]; then
+-        /mnt/SDCARD/spruce/bin64/gptokeyb -c "./galleryPixel2.gptk" &
+-    else
+-        /mnt/SDCARD/spruce/bin64/gptokeyb -c "./gallery.gptk" &
+-    fi
++    case "$PLATFORM" in
++        Pixel2|G350|XUMiniM)
++            /mnt/SDCARD/spruce/bin64/gptokeyb -c "./galleryPixel2.gptk" & ;;
++        *)
++            /mnt/SDCARD/spruce/bin64/gptokeyb -c "./gallery.gptk" & ;;
++    esac
+ 
+     sleep 0.3
+ 
+diff --git a/App/PixelReader/launch.sh b/App/PixelReader/launch.sh
+index 39ee6a513..07099439b 100644
+--- a/App/PixelReader/launch.sh
++++ b/App/PixelReader/launch.sh
+@@ -5,7 +5,7 @@
+ if [ "$PLATFORM" = "A30" ]; then
+ 	export LD_LIBRARY_PATH=$(dirname "$0")/libs32:/mnt/SDCARD/spruce/bin:$LD_LIBRARY_PATH
+ 	export SDL_VIDEODRIVER=dummy
+-elif [ "$PLATFORM" = "Pixel2" ]; then
++elif [ "$PLATFORM" = "Pixel2" ] || [ "$PLATFORM" = "G350" ] || [ "$PLATFORM" = "XUMiniM" ]; then
+ 	export LD_LIBRARY_PATH=/mnt/SDCARD/spruce/bin64:$LD_LIBRARY_PATH
+ 	/mnt/SDCARD/spruce/bin64/gptokeyb -k "reader" -c "./readerPixel2.gptk" &
+ else
+diff --git a/App/PortMaster/launch.sh b/App/PortMaster/launch.sh
+index 82e8e1a08..18f3ffc27 100644
+--- a/App/PortMaster/launch.sh
++++ b/App/PortMaster/launch.sh
+@@ -11,7 +11,7 @@ OURS="/mnt/SDCARD/App/PortMaster"
+ 
+ . /mnt/SDCARD/spruce/portmaster/portmaster.txt
+ 
+-if [ "$PLATFORM" = "Pixel2" ]; then
++if [ "$PLATFORM" = "Pixel2" ] || [ "$PLATFORM" = "G350" ] || [ "$PLATFORM" = "XUMiniM" ]; then
+     export PYSDL2_DLL_PATH="/usr/lib"
+ fi
+ 
+diff --git a/spruce/scripts/emu/lib/advmame_functions.sh b/spruce/scripts/emu/lib/advmame_functions.sh
+index 5b43e64cd..0f6fb8878 100644
+--- a/spruce/scripts/emu/lib/advmame_functions.sh
++++ b/spruce/scripts/emu/lib/advmame_functions.sh
+@@ -51,7 +51,7 @@ run_advmame() {
+ 			[ -f "$EMU_DIR/advmame.log" ] && cp "$EMU_DIR/advmame.log" "$ADVMAME_LOG"
+ 			kill -9 $(pidof gptokeyb2) 2>/dev/null
+ 			;;
+-		"Pixel2")
++		"Pixel2"|"G350"|"XUMiniM")
+ 			[ -f "$EMU_DIR/advmame.log" ] && rm "$EMU_DIR/advmame.log"
+ 			export SDL_GAMECONTROLLERCONFIG="/mnt/SDCARD/Emu/PORTS/gamecontrollerdb_nintendo.txt"
+ 			gptokeyb2 $EMU_DIR/advmame -c "$EMU_DIR/advmame.ini" &
+diff --git a/spruce/scripts/emu/lib/drastic_functions.sh b/spruce/scripts/emu/lib/drastic_functions.sh
+index 8cdc60f77..06ef8fe79 100644
+--- a/spruce/scripts/emu/lib/drastic_functions.sh
++++ b/spruce/scripts/emu/lib/drastic_functions.sh
+@@ -290,6 +290,10 @@ run_drastic_Pixel2() {
+ 	fi
+ }
+ 
++# SpruceMOSS-3326 boards run twig's Pixel 2 build of DraStic.
++run_drastic_G350() { run_drastic_Pixel2; }
++run_drastic_XUMiniM() { run_drastic_Pixel2; }
++
+ run_drastic_trngaje_Pixel2() {
+ 	ready_arch_64_states
+ 	export LD_LIBRARY_PATH="$HOME/lib64_Pixel2_trngaje:$LD_LIBRARY_PATH"
+diff --git a/spruce/scripts/emu/lib/openbor_functions.sh b/spruce/scripts/emu/lib/openbor_functions.sh
+index 92e4c3e18..b55c25333 100644
+--- a/spruce/scripts/emu/lib/openbor_functions.sh
++++ b/spruce/scripts/emu/lib/openbor_functions.sh
+@@ -53,7 +53,7 @@ run_openbor() {
+ 		fi
+ 		killall -q -USR1 joystickinput
+ 
+-	elif [ "$PLATFORM" = "Pixel2" ]; then
++	elif [ "$PLATFORM" = "Pixel2" ] || [ "$PLATFORM" = "G350" ] || [ "$PLATFORM" = "XUMiniM" ]; then
+ 
+ 		if [ "$GAME" = "Final Fight LNS.pak" ]; then
+ 			LNS_SAVE="/mnt/SDCARD/Saves/saves/OPENBOR/Saves/Final Fight LNS.cfg"
+diff --git a/spruce/scripts/emu/lib/pico8_functions.sh b/spruce/scripts/emu/lib/pico8_functions.sh
+index 184ad0610..d339c8246 100644
+--- a/spruce/scripts/emu/lib/pico8_functions.sh
++++ b/spruce/scripts/emu/lib/pico8_functions.sh
+@@ -59,7 +59,7 @@ run_pico8() {
+ 		sed 's|^transform_screen 135$|transform_screen 0|' "$HOME/.lexaloffle/pico-8/config.txt" > "$HOME/.lexaloffle/pico-8/config.txt.tmp" && mv "$HOME/.lexaloffle/pico-8/config.txt.tmp" "$HOME/.lexaloffle/pico-8/config.txt"
+ 		sed 's/^button_keys.*/button_keys 0 0 0 0 44 224 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0/' "$HOME/.lexaloffle/pico-8/config.txt" > "$HOME/.lexaloffle/pico-8/config.txt.tmp" && mv "$HOME/.lexaloffle/pico-8/config.txt.tmp" "$HOME/.lexaloffle/pico-8/config.txt"
+ 
+-	elif [ "$PLATFORM" = "Pixel2" ]; then
++	elif [ "$PLATFORM" = "Pixel2" ] || [ "$PLATFORM" = "G350" ] || [ "$PLATFORM" = "XUMiniM" ]; then
+ 		enable_dpad_to_mouse
+ 		PICO8_BINARY="pico8_64"
+ 		sed 's|^transform_screen 135$|transform_screen 0|' "$HOME/.lexaloffle/pico-8/config.txt" > "$HOME/.lexaloffle/pico-8/config.txt.tmp" && mv "$HOME/.lexaloffle/pico-8/config.txt.tmp" "$HOME/.lexaloffle/pico-8/config.txt"
+@@ -171,7 +171,7 @@ load_pico8_control_profile() {
+ 		"SmartProS")
+ 			export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:"$HOME"/lib-trimui
+ 			;;
+-		"Pixel2")
++		"Pixel2"|"G350"|"XUMiniM")
+ 			export LD_LIBRARY_PATH=/usr/lib:$LD_LIBRARY_PATH
+ 			;;
+ 		"Anbernic"*)
+diff --git a/spruce/scripts/emu/lib/ra_functions.sh b/spruce/scripts/emu/lib/ra_functions.sh
+index 8d58fcb5a..6ff306021 100644
+--- a/spruce/scripts/emu/lib/ra_functions.sh
++++ b/spruce/scripts/emu/lib/ra_functions.sh
+@@ -247,7 +247,7 @@ run_retroarch() {
+ 		RA_PARAMS="-v"
+ 	fi
+ 	case "$PLATFORM" in
+-		"Pixel2"|"Flip"|"Miniloong"|"SmartPro"|"SmartProS"|"Brick"|"BrickPro"|"A30"|"MiyooMini"|"RGB30"|"Anbernic"*)
++		"Pixel2"|"G350"|"XUMiniM"|"Flip"|"Miniloong"|"SmartPro"|"SmartProS"|"Brick"|"BrickPro"|"A30"|"MiyooMini"|"RGB30"|"Anbernic"*)
+ 			RA_PARAMS="${RA_PARAMS} --config ${PLATFORM_CFG}"
+ 			;;
+ 	esac
+diff --git a/spruce/scripts/emu/lib/scummvm_functions.sh b/spruce/scripts/emu/lib/scummvm_functions.sh
+index 6b51bb4f7..a3e0bba7d 100644
+--- a/spruce/scripts/emu/lib/scummvm_functions.sh
++++ b/spruce/scripts/emu/lib/scummvm_functions.sh
+@@ -31,7 +31,7 @@ _set_scummvm_platform() {
+ 			SCUMMVM_CONFIG="/mnt/SDCARD/Saves/.config/scummvm-brickpro/scummvm.ini"
+ 			export LD_LIBRARY_PATH="$EMU_DIR/lib:$LD_LIBRARY_PATH"
+ 			;;
+-		"Pixel2")
++		"Pixel2"|"G350"|"XUMiniM")
+ 			SCUMMVM_CONFIG="/mnt/SDCARD/Saves/.config/scummvm-pixel2/scummvm.ini"
+ 			export LD_LIBRARY_PATH="$EMU_DIR/lib:$LD_LIBRARY_PATH"
+ 			enable_dpad_to_analog
+diff --git a/spruce/scripts/firstboot.sh b/spruce/scripts/firstboot.sh
+index 68194960e..3429d468a 100644
+--- a/spruce/scripts/firstboot.sh
++++ b/spruce/scripts/firstboot.sh
+@@ -192,7 +192,7 @@ run_firstboot_package_phase() {
+         # Anbernic* is the whole XX line - every Anbernic platform we build for is
+         # H700 aarch64, which is what the shipped advmame binary is. A platform
+         # left out of this list simply skips AdvanceMAME and keeps its archive.
+-        "Brick" | "BrickPro" | "SmartPro" | "SmartProS" | "Flip" | "Miniloong" | "Pixel2" | Anbernic*)
++        "Brick" | "BrickPro" | "SmartPro" | "SmartProS" | "Flip" | "Miniloong" | "Pixel2" | "G350" | "XUMiniM" | Anbernic*)
+             ADVMAME_7Z="$ADVMAME_DIR/advmame.7z"
+             ;;
+     esac
+diff --git a/spruce/scripts/helperFunctions.sh b/spruce/scripts/helperFunctions.sh
+index 52fa98817..d593dc938 100644
+--- a/spruce/scripts/helperFunctions.sh
++++ b/spruce/scripts/helperFunctions.sh
+@@ -57,7 +57,15 @@ case $INFO in
+             export PLATFORM="Flip"
+         fi
+         ;;
+-    *0xd04*) export PLATFORM="Pixel2" ;;        # RK3326
++    *0xd04*)                                    # RK3326 / RK3326S
++        # SpruceMOSS-3326's RK3326 image names its board in the device tree,
++        # in device-switch's group node (rk3326-device-group-twig.dtsi).
++        # Anything else - twigUI's own image included - is the GKD Pixel 2.
++        case "$(tr -d '\0' 2>/dev/null < /sys/firmware/devicetree/base/rocknix,device_switch/this)" in
++            g350) export PLATFORM="G350" ;;
++            *)    export PLATFORM="Pixel2" ;;
++        esac
++        ;;
+     *0xd03*)                                    # H700
+         export SPRUCE_BASEOS=1
+         BASEOS_TARGET=$(sed -n 's/^BASEOS_TARGET=//p' /etc/baseos-release 2>/dev/null)
+@@ -106,6 +114,11 @@ device_names() {
+         SmartProS)        echo "TRIMUI_SMART_PRO_S" ;;
+         Flip)             echo "MIYOO_FLIP" ;;
+         Pixel2)           echo "GKD_PIXEL2" ;;
++        # SpruceMOSS-3326 boards run the Pixel 2's twig userspace and the
++        # emulators twig builds for it, so they answer to its name as their
++        # family token (the ANBERNIC_RGXX pattern) and need no config edits.
++        G350)             echo "BATLEXP_G350";  echo "GKD_PIXEL2" ;;
++        XUMiniM)          echo "MAGICX_XU_MINI_M"; echo "GKD_PIXEL2" ;;
+         RGB30)            echo "RGB30" ;;
+         Miniloong)        echo "MINILOONG_POCKET1" ;;
+         Zero28)           echo "MAGICX_ZERO28" ;;
+diff --git a/spruce/scripts/network/timeFunctions.sh b/spruce/scripts/network/timeFunctions.sh
+index b430fa5c9..f1bbc1109 100644
+--- a/spruce/scripts/network/timeFunctions.sh
++++ b/spruce/scripts/network/timeFunctions.sh
+@@ -298,7 +298,8 @@ sync_timezone_from_network() {
+ 	command -v jq >/dev/null 2>&1 || return 0
+ 	# The Pixel 2 keeps its zone in its own system layer (tz-data.service),
+ 	# which PyUI's shared-config path does not write. Left alone on purpose.
+-	[ "$PLATFORM" = "Pixel2" ] && return 0
++	# The SpruceMOSS-3326 boards run the same twig system layer.
++	case "$PLATFORM" in Pixel2|G350|XUMiniM) return 0 ;; esac
+ 	if ! time_sync_is_enabled; then
+ 		log_message "Timezone: network sync turned off in Time Settings, leaving the zone alone" -v
+ 		return 0
+diff --git a/spruce/scripts/tasks/resetScummVM.sh b/spruce/scripts/tasks/resetScummVM.sh
+index f057834d3..cb8c78f9c 100644
+--- a/spruce/scripts/tasks/resetScummVM.sh
++++ b/spruce/scripts/tasks/resetScummVM.sh
+@@ -13,7 +13,7 @@ case "$PLATFORM" in
+     "SmartProS")  SCUMMVM_TARGET="tsps" ;;
+     "Brick")      SCUMMVM_TARGET="brick" ;;
+     "BrickPro")   SCUMMVM_TARGET="brickpro" ;;
+-    "Pixel2")     SCUMMVM_TARGET="pixel2" ;;
++    "Pixel2"|"G350"|"XUMiniM") SCUMMVM_TARGET="pixel2" ;;
+     "Anbernic"*)  SCUMMVM_TARGET="anbernic" ;;
+     "A30")        SCUMMVM_TARGET="a30" ;;
+     "MiyooMini")  SCUMMVM_TARGET="mini" ;;
+diff --git a/spruce/scripts/theme_watchdog.sh b/spruce/scripts/theme_watchdog.sh
+index 5d495765a..d6069d696 100644
+--- a/spruce/scripts/theme_watchdog.sh
++++ b/spruce/scripts/theme_watchdog.sh
+@@ -8,7 +8,7 @@ get_theme_path() {
+ 
+ new_theme_action() {
+     case "$PLATFORM" in
+-        "Pixel2") set_loading_screen ;;
++        "Pixel2"|"G350"|"XUMiniM") set_loading_screen ;;
+         *) return 0 ;;
+     esac
+ }

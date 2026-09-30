@@ -9,6 +9,8 @@ PKG_URL="https://github.com/spruceUI/spruceOS/archive/${PKG_VERSION}.tar.gz"
 PKG_DEPENDS_TARGET="toolchain Python3 emulators systemd"
 PKG_LONGDESC="twigUI SD card package"
 PKG_TOOLCHAIN="manual"
+# A profile's payload additions (see make_target) must rebuild this package.
+PKG_NEED_UNPACK="${PROJECT_DIR}/${PROJECT}/devices/${DEVICE}/twig-payload"
 
 unpack() {
   mkdir -p "${PKG_BUILD}/spruce"
@@ -48,6 +50,17 @@ make_target() {
 
   copy_emulators
 
+  # A device profile may carry board support for its spruce payload
+  # (SpruceMOSS-3326's RK3326 image: the BatleXP G350). It is a patch series
+  # made against the payload as built up to here - spruce, the overlay above,
+  # delete.txt and the emulators - so it can change files twig replaces too.
+  # Twig's own RK3326S profile has none, so its payload is unchanged.
+  for patch_file in "${PROJECT_DIR}/${PROJECT}/devices/${DEVICE}/twig-payload/"*.patch; do
+    [ -f "${patch_file}" ] || continue
+    patch -d "${SPRUCE_DIR}" -p1 --no-backup-if-mismatch -s <"${patch_file}" ||
+      die "twig: ${patch_file##*/} does not apply to the ${DEVICE} payload"
+  done
+
   if [ "$RELEASE" = "true" ]; then
     # Remove developer_mode flag if needed
     rm "${SPRUCE_DIR}"/spruce/flags/developer_mode
@@ -68,7 +81,13 @@ make_target() {
   7z a -t7z -mx=7 -mf- "${ARCHIVE_FILE}" "${SPRUCE_DIR}"/. > /dev/null
 
   # Copy version file and boot logo
-  cp -f "${PKG_DIR}"/install/logo.bmp ${PKG_BUILD}/
+  # The Pixel 2's logo is stored rotated for its portrait panel; a profile
+  # with a landscape panel carries its own.
+  if [ -f "${PROJECT_DIR}/${PROJECT}/devices/${DEVICE}/twig-payload/logo.bmp" ]; then
+    cp -f "${PROJECT_DIR}/${PROJECT}/devices/${DEVICE}/twig-payload/logo.bmp" ${PKG_BUILD}/
+  else
+    cp -f "${PKG_DIR}"/install/logo.bmp ${PKG_BUILD}/
+  fi
   cp -f "${SPRUCE_DIR}"/spruce/twig ${PKG_BUILD}/version
   rm -rf "${SPRUCE_DIR}"
 }
