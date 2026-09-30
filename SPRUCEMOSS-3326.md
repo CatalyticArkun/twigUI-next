@@ -2,7 +2,8 @@
 
 A spruceOS base OS for the Rockchip RK3326 handhelds, built from twigUI-next (a
 ROCKNIX fork) with the conventions of the \*MOSS bases. Started 2026-09-30.
-**Nothing here has been built or run.**
+**The RK3326 kernel, device trees and u-boot build (2026-09-30); no image has been
+assembled and nothing has run on hardware.**
 
 Its RK3566 sibling is **SpruceMOSS-3566 (dark)**: the dArkMoss lineage
 (spruceUI/dArkMoss, from dArkOS), for the RGB30, Miniloong Pocket 1 and Miyoo
@@ -35,9 +36,9 @@ Both run an `arm` pass before `aarch64`, like twigUI's `RK3326S` target:
 
 | device | profile | kernel | how the board is chosen | status |
 |---|---|---|---|---|
-| GKD Pixel 2 | `RK3326S` | twig's vendor 5.10 | fixed `fdt` (single-board image) | **works today** as twigUI; only the distro name changes. Package plan identical to twigUI's (496 steps) |
-| BatleXP G350 | `RK3326` | mainline 7.1.2 (ROCKNIX's pin) | u-boot ADC band 490-540 | profile assembled and resolved (501 steps), unbuilt |
-| MagicX XU Mini M | `RK3326` | mainline 7.1.2 | u-boot ADC band 1000-1050 | profile assembled and resolved, unbuilt |
+| GKD Pixel 2 | `RK3326S` | twig's vendor 5.10 | fixed `fdt` (single-board image) | **works today** as twigUI; only the distro name changes. Package plan identical to twigUI's (496 steps); its payload gets no additions |
+| BatleXP G350 | `RK3326` | mainline 7.1.2 (ROCKNIX's pin) | u-boot ADC band 490-540 | kernel, dtb (`this = "g350"`) and u-boot **built**; spruce platform written (payload patch 0002); unrun |
+| MagicX XU Mini M | `RK3326` | mainline 7.1.2 | u-boot ADC band 1000-1050 | kernel and dtb (`this = "xumini"`) **built**; no spruce platform yet. Panel is portrait (480x640, `rotation = <90>`): twig's sway start-up rotates the UI from `fbcon/rotate`, but the early boot logo does not rotate |
 
 The RK3326 image is ROCKNIX's "b" image: mainline u-boot, which exports the
 board's ADC reading as `hwid_adc`, and `b_boot.ini`, which maps it to a dtb. Two
@@ -75,15 +76,21 @@ independently (`f6c1969` detects the spruce card by content, not label).
 
 ## Board identity for spruce
 
-spruce resolves every RK3326 board to `Pixel2` (the `*0xd04*` case of
-`helperFunctions.sh`, and the same line in `.tmp_update/updater`). The fix
-reads `OS_NAME`, then the board:
+spruce resolved every RK3326 board to `Pixel2` (the `*0xd04*` case of
+`helperFunctions.sh`). Payload patch 0001 reads the board from the device tree;
+the values exist only in this fork's device group, so no `OS_NAME` test is needed:
 
-| `OS_NAME` | `rocknix,device_switch/this` | spruce `PLATFORM` |
-|---|---|---|
-| `SpruceMOSS-3326` or `twigUI` | `g350` | `G350` (new) |
-| `SpruceMOSS-3326` or `twigUI` | `xumini` | `XUMiniM` (new) |
-| anything else, or no node | - | `Pixel2` (unchanged) |
+| `rocknix,device_switch/this` | spruce `PLATFORM` |
+|---|---|
+| `g350` | `G350` |
+| `xumini` | `Pixel2` until the XU Mini M's platform exists, then `XUMiniM` |
+| anything else, or no node (twigUI's own image) | `Pixel2`, unchanged |
+
+The new boards answer to `GKD_PIXEL2` after their own name in `device_names()`
+and PyUI's `get_device_names()`, the family-token pattern spruce uses for the
+Anbernic XX line: they get exactly the emulators twig builds, with no Emu
+`config.json` edits. `.tmp_update/updater` is left alone: it only uses the
+platform to pick the Mini's startup or the Flip's session.
 
 ## The spruce payload
 
@@ -104,20 +111,43 @@ twig's overlay stays valid. Consequences for the new boards:
   and the overlay replaces files (`App/PortMaster/launch.sh`, for one, sets
   `PYSDL2_DLL_PATH` for `Pixel2` only).
 
+So the twig package now applies a device profile's `twig-payload/*.patch` right
+after the emulator copy, and takes the profile's `logo.bmp` if it has one
+(`projects/twigUI/devices/RK3326/twig-payload/README.md`). The series is made in a
+git repo whose base commit is the payload as twig builds it; `make-payload-repo.sh`
+rebuilds that repo from a spruceOS clone and reproduces the series exactly. It is
+not a spruceOS branch and has not been through spruceOS's gates (they cover
+Development, and no fleet pin covers twig's 4.4.1 line).
+
+One more difference the G350 needed: twig's gamecontrollerdb maps the Pixel 2 by
+label (GameController "a" is the printed A) but the G350's pad positionally. The
+G350's cfg exports the label form for its GUID, so every GameController-based
+config twig wrote for the Pixel 2 applies unchanged; raw-index configs are
+translated by printed button.
+
 ## Known gaps
 
-- **Never built.** Package plans resolve in `ghcr.io/rocknix/rocknix-build`; no
-  compiler has run.
+- **No image yet.** The RK3326 toolchain, kernel, dtbs and u-boot build in
+  `ghcr.io/rocknix/rocknix-build` (`scripts/build_mt linux u-boot`, 93 packages);
+  the rest of the image, the emulators included, has not been compiled. Getting
+  that far took three fixes that twigUI itself needs on a clean build tree: `fbv`
+  declared no init dependencies, twig's `libtool` override downloaded the wrong
+  version, and gcc's libsanitizer needed ROCKNIX's patch for 7.x kernel headers.
+  twig's `iwd` override has the libtool shape too (3.10 over 3.12, with 3.12's
+  checksum) and is untested.
 - **Updates are device-blind in the spruce half.** twig's OTA downloader takes
   the first `_update` asset of spruceUI/twigUI-next's latest release, and the EZ
   Updater extracts a `twigUI_V*.tar.gz` onto the spruce card without checking
   the device. The system half is safe - init refuses a system whose `HW_DEVICE`
   differs, and one whose file name lacks this distro's name - but by then the
   spruce card already holds the Pixel 2 payload.
-- **Wi-Fi regulatory database.** ROCKNIX now builds `regulatory.db` into kernels
-  with a built-in cfg80211, or the radio stays in world domain 00 (5 GHz
-  no-IR). twigUI's `linux` package predates that change.
-- **No platform files yet** for the G350 or the XU Mini M, in spruce or here.
+- **Device-switch has no way back from the XU10.** The group lists `xu10`, but
+  the XU10's own dtb carries no group node; switching to it strands the image on
+  it. The XU10 is not a target.
+- **advmame** on the Pixel 2 path points `SDL_GAMECONTROLLERCONFIG` at a file
+  name, which SDL ignores, so the G350 falls back to the positional database
+  line there.
+- **No XU Mini M platform yet**, and its boot logo needs choosing by panel shape.
 
 ## RK3566 under twigUI
 

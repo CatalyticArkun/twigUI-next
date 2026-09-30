@@ -103,11 +103,12 @@ device-switch               # which board this image is currently set to
 
 ## Open items
 
-- **Never built.** The kernel case, patch dirs and vendored packages are reasoned from the
-  build system's own lookup rules, not from a successful run. What has been checked: the
-  package plan resolves (501 steps) inside `ghcr.io/rocknix/rocknix-build`, with
-  `SUBDEVICES=b` and the seven dtbs above. The host alone cannot check this - without
-  `xmlstarlet` the config.xml lookups come back empty and the plan still "resolves".
+- **Kernel and bootloader built, image not.** `scripts/build_mt linux u-boot` completes in
+  `ghcr.io/rocknix/rocknix-build` (2026-09-30): all 26 kernel patches apply to 7.1.2, the
+  seven `b` dtbs compile (the G350's with `this = "g350"`, the Mini M's with `this =
+  "xumini"`), and u-boot produces `b_uboot.bin`, `b_boot.scr` and the generated
+  `extlinux.conf.eeclone/.rgb20s/.xu10`. The host alone cannot check any of this - without
+  `xmlstarlet` the config.xml lookups come back empty and a plan still "resolves".
 - `glibc`'s `OPT_ENABLE_KERNEL`, `wlroots`/`sway`'s rockchip variant and
   `ffmpeg-rockchip`'s `V4L2_SUPPORT` all case on `RK3326S`/`RK3588` in the twigUI project.
   This profile deliberately takes their defaults; whether any of them should follow the

@@ -5,8 +5,8 @@ Subject: [PATCH 2/2] G350: platform for the BatleXP G350 on SpruceMOSS-3326
 
 The G350 runs twig's userspace on ROCKNIX's mainline device tree, so it is
 the Pixel 2's platform with the board swapped. Board values come from the
-device tree and kernel config the image builds; none has been read on a
-running unit.
+device tree and kernel config the image builds (the kernel and dtbs build);
+none has been read on a running unit.
 
 - G350.cfg: from twig's Pixel2.cfg. CPU OPPs 1008/1296 MHz plus 1416
   turbo (rk3326.dtsi trims px30.dtsi), one 560 MHz GPU OPP, no conservative
@@ -16,6 +16,12 @@ running unit.
   name; the rk817 power key is found by glob, because mainline registers it
   as rk805-pwrkey.<n>.auto. Emulator binaries keep twig's *_Pixel2 names:
   twig builds them for the image, not for the Pixel 2.
+- SDL semantics: twig's gamecontrollerdb maps the Pixel 2 by label (the
+  GameController "a" is the printed A) and this pad positionally ("a" is
+  south, the printed B). G350.cfg exports SDL_GAMECONTROLLERCONFIG with the
+  database line's a and b exchanged, so everything twig wrote for the Pixel
+  2 - RetroArch binds and hotkeys, PPSSPP controls, gptokeyb maps - lands on
+  the same printed buttons here and can be copied unchanged.
 - device_functions/G350.sh: sources Pixel2.sh and replaces what names Pixel
   2 hardware: its config file, RetroArch cfg, raw event2, the five-LED cava
   manager (the G350 has one GPIO LED), and the d-pad-to-stick toggle (the
@@ -23,12 +29,13 @@ running unit.
 - PyUI BatlexpG350 on twig's GKDPixel2: its constructor with the G350's
   config and event nodes, BTN_MODE as MENU, stick clicks mapped; answers to
   GKD_PIXEL2 as its family token. mainui.py and launch.sh learn the name.
-- Pad configs, translated role by role through twig's gamecontrollerdb
-  (pixel2_joypad raw -> GameController role -> retrogame_joypad raw):
-  RetroArch sdl2 autoconfig (GameController indices, so the Pixel 2's plus
-  sticks and L3/R3), flycast, yabasanshiro keymap (+ R on RB) and the Saturn
-  ES input. mupen64plus reuses spruce's own RGB30 section for this pad, which
-  twig's InputAutoCfg.ini dropped.
+- Pad configs keyed by raw SDL index (flycast, yabasanshiro + R on RB, the
+  Saturn ES input) are the Pixel 2's translated by printed button: the face
+  buttons keep their indices (304/305/307/308 are B/A/X/Y on both), the
+  d-pad moves to b13-b16 and the menu key to b10. RetroArch's sdl2
+  autoconfig uses GameController indices, so it is the Pixel 2's plus the
+  sticks and L3/R3. mupen64plus reuses spruce's own RGB30 section for this
+  pad, which twig's InputAutoCfg.ini dropped.
 - Per-platform copies of the Pixel 2's RetroArch, DraStic, advmame and
   PPSSPP defaults (same codes, same 640x480), first-boot flag, backup list.
 - USB storage exports the mounted card with BatleXP/G350 strings; the boot
@@ -61,10 +68,10 @@ running unit.
  RetroArch/platform/retroarch-G350.cfg.bak     | 3355 +++++++++++++++++
  spruce/flags/first_boot_G350.lock             |    0
  spruce/scripts/emu/lib/yaba_functions.sh      |    3 +
- spruce/scripts/platform/G350.cfg              |  208 +
+ spruce/scripts/platform/G350.cfg              |  217 ++
  .../scripts/platform/device_functions/G350.sh |   88 +
  spruce/scripts/tasks/repairSD.sh              |    5 +-
- 27 files changed, 9544 insertions(+), 5 deletions(-)
+ 27 files changed, 9553 insertions(+), 5 deletions(-)
  create mode 100644 App/PyUI/main-ui/devices/batlexp/batlexp_g350.py
  create mode 100644 App/PyUI/main-ui/devices/batlexp/g350-system.json
  create mode 100755 Emu/ARCADE/advmame-G350.rc
@@ -1475,7 +1482,7 @@ index 000000000..07df7cfe9
 +danceyes/display_mode generate
 diff --git a/Emu/DC/config/flycast/mappings/SDL_retrogame_joypad.cfg b/Emu/DC/config/flycast/mappings/SDL_retrogame_joypad.cfg
 new file mode 100644
-index 000000000..9b37e15c2
+index 000000000..ce613ffc5
 --- /dev/null
 +++ b/Emu/DC/config/flycast/mappings/SDL_retrogame_joypad.cfg
 @@ -0,0 +1,32 @@
@@ -1490,8 +1497,8 @@ index 000000000..9b37e15c2
 +bind7 = 3+:axis2_down
 +
 +[digital]
-+bind0 = 1:btn_a
-+bind1 = 0:btn_b
++bind0 = 0:btn_a
++bind1 = 1:btn_b
 +bind10 = 15:btn_dpad1_left
 +bind11 = 16:btn_dpad1_right
 +bind12 = 10:btn_menu
@@ -1513,7 +1520,7 @@ index 000000000..9b37e15c2
 +
 diff --git a/Emu/DC/config/flycast/mappings/SDL_retrogame_joypad.cfg.bak b/Emu/DC/config/flycast/mappings/SDL_retrogame_joypad.cfg.bak
 new file mode 100644
-index 000000000..9b37e15c2
+index 000000000..ce613ffc5
 --- /dev/null
 +++ b/Emu/DC/config/flycast/mappings/SDL_retrogame_joypad.cfg.bak
 @@ -0,0 +1,32 @@
@@ -1528,8 +1535,8 @@ index 000000000..9b37e15c2
 +bind7 = 3+:axis2_down
 +
 +[digital]
-+bind0 = 1:btn_a
-+bind1 = 0:btn_b
++bind0 = 0:btn_a
++bind1 = 1:btn_b
 +bind10 = 15:btn_dpad1_left
 +bind11 = 16:btn_dpad1_right
 +bind12 = 10:btn_menu
@@ -2667,7 +2674,7 @@ index 000000000..23ca9d8f4
 +[PlayTime]
 +ULUS10201 = 79,1768090235436557312
 diff --git a/Emu/SATURN/.emulationstation/es_temporaryinput.cfg b/Emu/SATURN/.emulationstation/es_temporaryinput.cfg
-index 0f5d0d0b5..046228484 100644
+index 0f5d0d0b5..573bd284b 100644
 --- a/Emu/SATURN/.emulationstation/es_temporaryinput.cfg
 +++ b/Emu/SATURN/.emulationstation/es_temporaryinput.cfg
 @@ -17,4 +17,21 @@
@@ -2675,8 +2682,8 @@ index 0f5d0d0b5..046228484 100644
  		<input name="y" type="button" id="3" value="1" />
  	</inputConfig>
 +	<inputConfig type="joystick" deviceName="retrogame_joypad" deviceGUID="19009b4d4b4800000111000000010000">
-+		<input name="a" type="button" id="0" value="1" />
-+		<input name="b" type="button" id="1" value="1" />
++		<input name="a" type="button" id="1" value="1" />
++		<input name="b" type="button" id="0" value="1" />
 +		<input name="down" type="button" id="14" value="1" />
 +		<input name="hotkeyenable" type="button" id="10" value="1" />
 +		<input name="left" type="button" id="15" value="1" />
@@ -2693,7 +2700,7 @@ index 0f5d0d0b5..046228484 100644
 +	</inputConfig>
  </inputList>
 diff --git a/Emu/SATURN/.yabasanshiro/keymapv2.json b/Emu/SATURN/.yabasanshiro/keymapv2.json
-index 1b32df362..da807eb99 100644
+index 1b32df362..f5cb5d7de 100644
 --- a/Emu/SATURN/.yabasanshiro/keymapv2.json
 +++ b/Emu/SATURN/.yabasanshiro/keymapv2.json
 @@ -71,5 +71,77 @@
@@ -2703,12 +2710,12 @@ index 1b32df362..da807eb99 100644
 +  },
 +  "0_retrogame_joypad_19009b4d4b4800000111000000010000": {
 +    "a": {
-+      "id": 0,
++      "id": 1,
 +      "type": "button",
 +      "value": 1
 +    },
 +    "b": {
-+      "id": 1,
++      "id": 0,
 +      "type": "button",
 +      "value": 1
 +    },
@@ -9550,10 +9557,10 @@ index 76f04f6a4..30c38c4b7 100644
  			seed_xx_yaba_keymap
 diff --git a/spruce/scripts/platform/G350.cfg b/spruce/scripts/platform/G350.cfg
 new file mode 100644
-index 000000000..942c6e192
+index 000000000..f0ccf3709
 --- /dev/null
 +++ b/spruce/scripts/platform/G350.cfg
-@@ -0,0 +1,208 @@
+@@ -0,0 +1,217 @@
 +#!/bin/sh
 +# BatleXP G350 platform specific variables
 +#
@@ -9754,10 +9761,19 @@ index 000000000..942c6e192
 +  #########################################
 +#####   RetroArch Keys   #####
 +  #########################################
++# SDL semantics. twig's gamecontrollerdb maps the Pixel 2's pad by label (the
++# GameController "a" is the button printed A) but this pad positionally ("a"
++# is the south button, which is B here). Everything twig ships for the Pixel 2
++# - RetroArch's binds and hotkeys, PPSSPP's controls, the gptokeyb maps - is
++# written against the label form, so the G350 gets the label form too: the
++# database line with a and b exchanged, exported so it overrides the
++# database's for every SDL program spruce starts. With it, a config written
++# for the Pixel 2 puts each function on the same printed button here.
++export SDL_GAMECONTROLLERCONFIG="19009b4d4b4800000111000000010000,retrogame_joypad,platform:Linux,x:b2,a:b1,b:b0,y:b3,back:b8,guide:b10,start:b9,dpleft:b15,dpdown:b14,dpright:b16,dpup:b13,leftshoulder:b4,lefttrigger:b6,rightshoulder:b5,righttrigger:b7,leftstick:b11,rightstick:b12,leftx:a0,lefty:a1,rightx:a2,righty:a3,"
++
 +# twig's RetroArch reads pads through SDL's GameController layer (sdl2 driver),
-+# so these are GameController indices - the same on every mapped pad. twig's
-+# gamecontrollerdb maps this GUID (19009b4d4b4800000111000000010000) with
-+# guide on the MODE key.
++# so these are GameController indices - the same on every mapped pad; guide
++# is the MODE key in the mapping above.
 +RA_HOTKEY_LINE="input_enable_hotkey_btn"
 +RA_SELECT_VAL="4"
 +RA_START_VAL="6"
