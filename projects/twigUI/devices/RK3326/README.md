@@ -41,6 +41,37 @@ and panel choice matters on this hardware at all. ROCKNIX's `generic-dsi` alread
 the Mini M's twelve candidate modelines, so the panel lottery is handled in the dts rather
 than by a boot-time menu.
 
+## Card models: SD1 and SD2
+
+Both boards have two card slots - `&sdmmc` and `&sdio`, each with its own
+card-detect - because neither has an internal radio to spend the SDIO controller
+on. `start_spruce.sh` therefore resolves spruce's card at boot instead of
+assuming one:
+
+| model | what it is | how it is found |
+|---|---|---|
+| **SD1** | the built twigUI card itself: boot + system partitions, with spruce on the card's own FAT32 partition. twig's existing model, and the only one the first run knows about. | `LABEL=TWIGUI` |
+| **SD2** | a separate spruce card in the other slot - the dArkMoss/moss model. Present means preferred, so a base card can keep a throwaway payload while a full spruce card is swapped in and out. | label `SPRUCEOS` first (what dArkMoss cards use), else any partition carrying `.tmp_update/updater` |
+
+Rules that make this safe:
+
+- The SD2 search never looks at the disk the device booted from, so SD1 is only
+  ever reached through its `TWIGUI` label. It works the same whichever slot holds
+  the base card.
+- A candidate is probed read-only before it is adopted, so a card that is not
+  spruce's is left untouched.
+- First run is unchanged: it expands and formats SD1's partition and reboots
+  before any SD2 search happens.
+- If SD2 is found but will not mount, the script falls back to SD1 rather than
+  leaving the device with nothing.
+- exFAT is a module in this kernel, so it is loaded before probing; an exFAT
+  spruce card works as well as FAT32.
+- The decision is logged to `/flash/spruce-card.log`.
+
+There is deliberately no wait loop for a late-appearing SD2 card: both slots are
+probed by the kernel well before `twig.service`, which runs after sway. If a
+slow card ever loses the race, a bounded wait belongs here.
+
 ## Board selection
 
 One image ships every dtb. `device-switch` rewrites extlinux's `FDT` line from the
