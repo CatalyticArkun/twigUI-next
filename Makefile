@@ -63,6 +63,22 @@ RK3326:
 	PROJECT=ROCKNIX DEVICE=RK3326 ARCH=arm ./scripts/build_distro
 	PROJECT=ROCKNIX DEVICE=RK3326 ARCH=aarch64 ./scripts/build_distro
 
+# TwigMoss: the twigUI project's machinery under the TwigMoss distro identity,
+# so /etc/os-release reads OS_NAME="TwigMoss" the way dArkMoss cards read
+# OS_NAME="DARKMOSS". One image per SoC; the board inside it is chosen at
+# runtime by device-switch.
+TwigMoss-RK3326:
+	unset DEVICE_ROOT
+	PROJECT=twigUI DISTRO=TwigMoss DEVICE=RK3326 ARCH=aarch64 ./scripts/build_distro
+
+TwigMoss-RK3326S:
+	unset DEVICE_ROOT
+	PROJECT=twigUI DISTRO=TwigMoss DEVICE=RK3326S ARCH=aarch64 ./scripts/build_distro
+
+TwigMoss-RK3566:
+	unset DEVICE_ROOT
+	PROJECT=twigUI DISTRO=TwigMoss DEVICE=RK3566 ARCH=aarch64 ./scripts/build_distro
+
 RK3326-twig:
 	unset DEVICE_ROOT
 	PROJECT=twigUI DISTRO=twigUI DEVICE=RK3326 ARCH=aarch64 ./scripts/build_distro
