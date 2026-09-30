@@ -38,7 +38,7 @@ Both run an `arm` pass before `aarch64`, like twigUI's `RK3326S` target:
 |---|---|---|---|---|
 | GKD Pixel 2 | `RK3326S` | twig's vendor 5.10 | fixed `fdt` (single-board image) | **works today** as twigUI; only the distro name changes. Package plan identical to twigUI's (496 steps); its payload gets no additions |
 | BatleXP G350 | `RK3326` | mainline 7.1.2 (ROCKNIX's pin) | u-boot ADC band 490-540 | kernel, dtb (`this = "g350"`) and u-boot **built**; spruce platform written (payload patch 0002); unrun |
-| MagicX XU Mini M | `RK3326` | mainline 7.1.2 | u-boot ADC band 1000-1050 | kernel and dtb (`this = "xumini"`) **built**; no spruce platform yet. Panel is portrait (480x640, `rotation = <90>`): twig's sway start-up rotates the UI from `fbcon/rotate`, but the early boot logo does not rotate |
+| MagicX XU Mini M | `RK3326` | mainline 7.1.2 | u-boot ADC band 1000-1050 | kernel and dtb (`this = "xumini"`) **built**; spruce platform written (payload patch 0003); unrun. Panel is portrait (480x640, `rotation = <90>`): twig's sway start-up rotates the UI from `fbcon/rotate`; the raw boot logo is turned once by spruce |
 
 The RK3326 image is ROCKNIX's "b" image: mainline u-boot, which exports the
 board's ADC reading as `hwid_adc`, and `b_boot.ini`, which maps it to a dtb. Two
@@ -83,7 +83,7 @@ the values exist only in this fork's device group, so no `OS_NAME` test is neede
 | `rocknix,device_switch/this` | spruce `PLATFORM` |
 |---|---|
 | `g350` | `G350` |
-| `xumini` | `Pixel2` until the XU Mini M's platform exists, then `XUMiniM` |
+| `xumini` | `XUMiniM` |
 | anything else, or no node (twigUI's own image) | `Pixel2`, unchanged |
 
 The new boards answer to `GKD_PIXEL2` after their own name in `device_names()`
@@ -147,7 +147,9 @@ translated by printed button.
 - **advmame** on the Pixel 2 path points `SDL_GAMECONTROLLERCONFIG` at a file
   name, which SDL ignores, so the G350 falls back to the positional database
   line there.
-- **No XU Mini M platform yet**, and its boot logo needs choosing by panel shape.
+- **The XU Mini M's first boot shows the logo sideways.** The image ships one
+  landscape `/flash/logo.bmp` and the initramfs draws it raw; spruce turns it for
+  the portrait panel on its first start there, so every later boot is upright.
 
 ## RK3566 under twigUI
 

@@ -31,3 +31,4 @@ package stops with "does not apply to the RK3326 payload" when it does not.
 |---|---|
 | 0001 | detection from `rocknix,device_switch/this`; twig-userspace branches take the new boards |
 | 0002 | BatleXP G350 platform |
+| 0003 | MagicX XU Mini M platform; the two boards' shared layer (`SpruceMOSS3326Common.cfg/.sh`, PyUI `SpruceMoss3326Device`) |
